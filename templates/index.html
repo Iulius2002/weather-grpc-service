@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Weather History Chart</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Chart.js din CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #0f172a;
+            color: #e5e7eb;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            padding: 1.5rem;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+
+        .card {
+            background: #111827;
+            border-radius: 1rem;
+            padding: 1rem 1.5rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.5rem;
+            border: 1px solid #374151;
+            background: #020617;
+            color: #e5e7eb;
+        }
+
+        button {
+            margin-top: 0.75rem;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            border: none;
+            background: #3b82f6;
+            color: white;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        button:hover {
+            background: #2563eb;
+        }
+
+        .error {
+            color: #f97373;
+            margin-top: 0.5rem;
+        }
+
+        .info {
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+            color: #9ca3af;
+        }
+
+        canvas {
+            background: #020617;
+            border-radius: 0.75rem;
+            padding: 0.75rem;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Weather History Chart</h1>
+
+    <div class="card">
+        <label for="city-input">City name</label>
+        <input id="city-input" type="text" placeholder="e.g. Bucharest">
+        <button id="load-btn">Load data</button>
+        <div id="message" class="error"></div>
+        <div id="info" class="info"></div>
+    </div>
+
+    <div class="card">
+        <canvas id="tempChart" height="120"></canvas>
+    </div>
+</div>
+
+<script>
+    const loadBtn = document.getElementById('load-btn');
+    const cityInput = document.getElementById('city-input');
+    const messageEl = document.getElementById('message');
+    const infoEl = document.getElementById('info');
+    const ctx = document.getElementById('tempChart').getContext('2d');
+
+    let chartInstance = null;
+
+    async function fetchWeatherHistory(city) {
+        const response = await fetch(`/api/weather?city=${encodeURIComponent(city)}`);
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            const errorText = data.error || `HTTP error ${response.status}`;
+            throw new Error(errorText);
+        }
+        return response.json();
+    }
+
+    function buildChart(labels, temps) {
+        if (chartInstance) {
+            chartInstance.destroy();
+        }
+
+        chartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Temperature (°C)',
+                    data: temps,
+                    tension: 0.3,
+                    fill: false,
+                    pointRadius: 3,
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: {
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 45
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: '°C'
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    loadBtn.addEventListener('click', async () => {
+        const city = cityInput.value.trim();
+        messageEl.textContent = '';
+        infoEl.textContent = '';
+
+        if (!city) {
+            messageEl.textContent = "Please enter a city name.";
+            return;
+        }
+
+        try {
+            infoEl.textContent = 'Loading...';
+            const data = await fetchWeatherHistory(city);
+
+            if (!data.data || data.data.length === 0) {
+                messageEl.textContent = 'No data found for this city. Try calling the gRPC client first to generate some history.';
+                infoEl.textContent = '';
+                if (chartInstance) chartInstance.destroy();
+                return;
+            }
+
+            // Datele vin sortate desc (cel mai nou primul), pentru grafic vrem cronologic
+            const records = [...data.data].reverse();
+
+            const labels = records.map(r => r.timestamp);
+            const temps = records.map(r => r.temperature_celsius);
+
+            buildChart(labels, temps);
+
+            infoEl.textContent = `Showing ${records.length} records for ${data.city}.`;
+        } catch (err) {
+            console.error(err);
+            messageEl.textContent = err.message || 'Unknown error';
+            infoEl.textContent = '';
+            if (chartInstance) chartInstance.destroy();
+        }
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package weather;
+
+// Mesaj trimis de client către server
+message WeatherRequest {
+  // Numele orașului pentru care vrem vremea
+  string city = 1;
+}
+
+// Răspunsul serverului către client
+message WeatherResponse {
+  // Numele orașului (normalizat, ex: "London")
+  string city = 1;
+
+  // Temperatura curentă în grade Celsius
+  double temperature_celsius = 2;
+
+  // Descrierea condițiilor meteo, ex: "clear sky", "light rain"
+  string description = 3;
+
+  // Umiditatea în procente (0–100)
+  int32 humidity = 4;
+
+  // Viteza vântului în m/s (poate lipsi din API, dar noi o vom trata)
+  double wind_speed = 5;
+
+  // Timestamp (string) când a fost preluat acest raport meteo, ex: "2025-11-10T12:34:56Z"
+  string timestamp = 6;
+}
+
+// Definiția serviciului gRPC
+service WeatherService {
+  // Returnează vremea curentă pentru un oraș
+  rpc GetCurrentWeather(WeatherRequest) returns (WeatherResponse);
+}

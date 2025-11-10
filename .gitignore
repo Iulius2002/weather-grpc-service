@@ -1,0 +1,36 @@
+# Environment & secrets
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.swp
+*.tmp
+
+# Virtual environments
+venv/
+.env/
+.venv/
+
+# macOS
+.DS_Store
+
+# PyCharm / JetBrains
+.idea/
+
+# Logs
+*.log
+logs/
+
+# Coverage / pytest
+.cache/
+.coverage
+htmlcov/
+
+# Docker
+*.pid
+
+# Node modules (dacă vei adăuga ceva JS mai heavy)
+node_modules/
