@@ -1,0 +1,46 @@
+version: "3.9"
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: weather-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  grpc_server:
+    build: .
+    container_name: weather-grpc-server
+    command: python -m server.weather_server
+    depends_on:
+      - mongo
+    environment:
+      # valorile dintre acolade vin din .env-ul tău local
+      OPENWEATHER_API_KEY: ${OPENWEATHER_API_KEY}
+      GRPC_API_KEY: ${GRPC_API_KEY}
+      # pentru container, Mongo e accesibil pe hostname-ul 'mongo'
+      MONGO_URI: mongodb://mongo:27017
+      MONGO_DB_NAME: weather_db
+      MONGO_COLLECTION_NAME: weather_history
+    ports:
+      - "50051:50051"
+
+  api:
+    build: .
+    container_name: weather-api
+    command: python -m api.app
+    depends_on:
+      - mongo
+    environment:
+      OPENWEATHER_API_KEY: ${OPENWEATHER_API_KEY}
+      GRPC_API_KEY: ${GRPC_API_KEY}
+      MONGO_URI: mongodb://mongo:27017
+      MONGO_DB_NAME: weather_db
+      MONGO_COLLECTION_NAME: weather_history
+      GRPC_SERVER_ADDRESS: grpc_server:50051
+    ports:
+      - "8000:8000"
+
+volumes:
+  mongo_data:

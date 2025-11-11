@@ -22,15 +22,33 @@ message WeatherResponse {
   // Umiditatea în procente (0–100)
   int32 humidity = 4;
 
-  // Viteza vântului în m/s (poate lipsi din API, dar noi o vom trata)
+  // Viteza vântului în m/s
   double wind_speed = 5;
 
-  // Timestamp (string) când a fost preluat acest raport meteo, ex: "2025-11-10T12:34:56Z"
+  // Timestamp ISO8601, ex: "2025-11-10T12:34:56Z"
   string timestamp = 6;
 }
 
-// Definiția serviciului gRPC
+// Intrare pentru fiecare prognoză din forecast
+message ForecastEntry {
+  string timestamp = 1;
+  double temperature_celsius = 2;
+  string description = 3;
+  int32 humidity = 4;
+  double wind_speed = 5;
+}
+
+// Răspuns complet pentru prognoză
+message ForecastResponse {
+  string city = 1;
+  repeated ForecastEntry entries = 2;
+}
+
+// Serviciul principal gRPC
 service WeatherService {
   // Returnează vremea curentă pentru un oraș
-  rpc GetCurrentWeather(WeatherRequest) returns (WeatherResponse);
+  rpc GetCurrentWeather (WeatherRequest) returns (WeatherResponse);
+
+  // Returnează prognoza pentru următoarele ore/zile
+  rpc GetForecast (WeatherRequest) returns (ForecastResponse);
 }

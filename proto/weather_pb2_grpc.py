@@ -26,7 +26,7 @@ if _version_not_supported:
 
 
 class WeatherServiceStub(object):
-    """Definiția serviciului gRPC
+    """Serviciul principal gRPC
     """
 
     def __init__(self, channel):
@@ -40,14 +40,26 @@ class WeatherServiceStub(object):
                 request_serializer=weather__pb2.WeatherRequest.SerializeToString,
                 response_deserializer=weather__pb2.WeatherResponse.FromString,
                 _registered_method=True)
+        self.GetForecast = channel.unary_unary(
+                '/weather.WeatherService/GetForecast',
+                request_serializer=weather__pb2.WeatherRequest.SerializeToString,
+                response_deserializer=weather__pb2.ForecastResponse.FromString,
+                _registered_method=True)
 
 
 class WeatherServiceServicer(object):
-    """Definiția serviciului gRPC
+    """Serviciul principal gRPC
     """
 
     def GetCurrentWeather(self, request, context):
         """Returnează vremea curentă pentru un oraș
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetForecast(self, request, context):
+        """Returnează prognoza pentru următoarele ore/zile
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -61,6 +73,11 @@ def add_WeatherServiceServicer_to_server(servicer, server):
                     request_deserializer=weather__pb2.WeatherRequest.FromString,
                     response_serializer=weather__pb2.WeatherResponse.SerializeToString,
             ),
+            'GetForecast': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetForecast,
+                    request_deserializer=weather__pb2.WeatherRequest.FromString,
+                    response_serializer=weather__pb2.ForecastResponse.SerializeToString,
+            ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
             'weather.WeatherService', rpc_method_handlers)
@@ -70,7 +87,7 @@ def add_WeatherServiceServicer_to_server(servicer, server):
 
  # This class is part of an EXPERIMENTAL API.
 class WeatherService(object):
-    """Definiția serviciului gRPC
+    """Serviciul principal gRPC
     """
 
     @staticmethod
@@ -90,6 +107,33 @@ class WeatherService(object):
             '/weather.WeatherService/GetCurrentWeather',
             weather__pb2.WeatherRequest.SerializeToString,
             weather__pb2.WeatherResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetForecast(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/weather.WeatherService/GetForecast',
+            weather__pb2.WeatherRequest.SerializeToString,
+            weather__pb2.ForecastResponse.FromString,
             options,
             channel_credentials,
             insecure,

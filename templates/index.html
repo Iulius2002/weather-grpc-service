@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Weather History Chart</title>
+    <title>Weather History & Forecast</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <!-- Chart.js din CDN -->
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
@@ -23,13 +23,14 @@
 
         .container {
             width: 100%;
-            max-width: 800px;
+            max-width: 900px;
             padding: 1.5rem;
         }
 
         h1 {
             text-align: center;
-            margin-bottom: 1rem;
+            margin-bottom: 1.2rem;
+            font-size: 1.8rem;
         }
 
         .card {
@@ -43,26 +44,59 @@
         label {
             display: block;
             margin-bottom: 0.5rem;
+            font-weight: 500;
         }
 
-        input[type="text"] {
+        .form-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            align-items: flex-end;
+            justify-content: space-between;
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .field#city-field {
+            flex: 0 0 60%;
+            min-width: 250px;
+        }
+
+        .field#range-field {
+            flex: 0 0 20%;
+            min-width: 130px;
+            max-width: 160px;
+        }
+
+        #load-btn {
+            flex: 0 0 15%;
+            white-space: nowrap;
+            height: fit-content;
+        }
+
+        input[type="text"],
+        select {
             width: 100%;
             padding: 0.5rem 0.75rem;
             border-radius: 0.5rem;
             border: 1px solid #374151;
             background: #020617;
             color: #e5e7eb;
+            font-size: 0.95rem;
         }
 
         button {
-            margin-top: 0.75rem;
-            padding: 0.5rem 1rem;
+            padding: 0.55rem 1rem;
             border-radius: 0.5rem;
             border: none;
             background: #3b82f6;
             color: white;
             cursor: pointer;
             font-weight: 500;
+            transition: background 0.2s ease;
         }
 
         button:hover {
@@ -70,13 +104,27 @@
         }
 
         .error {
-            color: #f97373;
+            color: #f87171;
             margin-top: 0.5rem;
+            font-size: 0.95rem;
+            text-align: center;
         }
 
         .info {
             margin-top: 0.5rem;
             font-size: 0.9rem;
+            color: #9ca3af;
+            text-align: center;
+        }
+
+        .details {
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+            color: #e5e7eb;
+            text-align: center;
+        }
+
+        .details span.label {
             color: #9ca3af;
         }
 
@@ -85,36 +133,85 @@
             border-radius: 0.75rem;
             padding: 0.75rem;
         }
+
+        @media (max-width: 640px) {
+            .form-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .field#city-field,
+            .field#range-field,
+            #load-btn {
+                flex: 1 1 100%;
+                max-width: none;
+            }
+        }
     </style>
 </head>
 <body>
 <div class="container">
-    <h1>Weather History Chart</h1>
+    <h1>Weather History & Forecast</h1>
 
     <div class="card">
-        <label for="city-input">City name</label>
-        <input id="city-input" type="text" placeholder="e.g. Bucharest">
-        <button id="load-btn">Load data</button>
+        <div class="form-row">
+            <div class="field" id="city-field">
+                <label for="city-input">City name</label>
+                <input id="city-input" type="text" placeholder="e.g. Bucharest">
+            </div>
+
+            <div class="field" id="range-field">
+                <label for="range-select">Time range</label>
+                <select id="range-select">
+                    <option value="">All history</option>
+                    <option value="6">Last 6 hours</option>
+                    <option value="24">Last 24 hours</option>
+                    <option value="72">Last 3 days</option>
+                </select>
+            </div>
+
+            <button id="load-btn">Load data</button>
+        </div>
+
         <div id="message" class="error"></div>
         <div id="info" class="info"></div>
+        <div id="details" class="details"></div>
     </div>
 
     <div class="card">
+        <h2 style="margin-top: 0; margin-bottom: 0.75rem; font-size: 1.2rem; text-align: center;">
+            History
+        </h2>
         <canvas id="tempChart" height="120"></canvas>
+    </div>
+
+    <div class="card">
+        <h2 style="margin-top: 0; margin-bottom: 0.75rem; font-size: 1.2rem; text-align: center;">
+            Forecast (next hours)
+        </h2>
+        <canvas id="forecastChart" height="120"></canvas>
     </div>
 </div>
 
 <script>
     const loadBtn = document.getElementById('load-btn');
     const cityInput = document.getElementById('city-input');
+    const rangeSelect = document.getElementById('range-select');
     const messageEl = document.getElementById('message');
     const infoEl = document.getElementById('info');
+    const detailsEl = document.getElementById('details');
     const ctx = document.getElementById('tempChart').getContext('2d');
+    const forecastCtx = document.getElementById('forecastChart').getContext('2d');
 
     let chartInstance = null;
+    let forecastChartInstance = null;
 
-    async function fetchWeatherHistory(city) {
-        const response = await fetch(`/api/weather?city=${encodeURIComponent(city)}`);
+    async function fetchWeatherHistory(city, hours) {
+        let url = `/api/weather?city=${encodeURIComponent(city)}&limit=200`;
+        if (hours) {
+            url += `&hours=${encodeURIComponent(hours)}`;
+        }
+
+        const response = await fetch(url);
         if (!response.ok) {
             const data = await response.json().catch(() => ({}));
             const errorText = data.error || `HTTP error ${response.status}`;
@@ -123,7 +220,18 @@
         return response.json();
     }
 
-    function buildChart(labels, temps) {
+    async function fetchForecast(city) {
+        const url = `/api/forecast?city=${encodeURIComponent(city)}`;
+        const response = await fetch(url);
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            const errorText = data.error || `HTTP error ${response.status}`;
+            throw new Error(errorText);
+        }
+        return response.json();
+    }
+
+    function buildHistoryChart(labels, temps) {
         if (chartInstance) {
             chartInstance.destroy();
         }
@@ -137,7 +245,47 @@
                     data: temps,
                     tension: 0.3,
                     fill: false,
-                    pointRadius: 3,
+                    borderColor: '#3b82f6',
+                    pointBackgroundColor: '#60a5fa',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: {
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 45
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: '°C'
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function buildForecastChart(labels, temps) {
+        if (forecastChartInstance) {
+            forecastChartInstance.destroy();
+        }
+
+        forecastChartInstance = new Chart(forecastCtx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Forecast Temperature (°C)',
+                    data: temps,
+                    tension: 0.3,
+                    fill: false,
+                    borderColor: '#22c55e',
+                    pointBackgroundColor: '#4ade80',
                     borderWidth: 2
                 }]
             },
@@ -163,8 +311,11 @@
 
     loadBtn.addEventListener('click', async () => {
         const city = cityInput.value.trim();
+        const hours = rangeSelect.value;
+
         messageEl.textContent = '';
         infoEl.textContent = '';
+        detailsEl.textContent = '';
 
         if (!city) {
             messageEl.textContent = "Please enter a city name.";
@@ -173,29 +324,70 @@
 
         try {
             infoEl.textContent = 'Loading...';
-            const data = await fetchWeatherHistory(city);
+
+            // 1️⃣ Istoric
+            const data = await fetchWeatherHistory(city, hours || null);
 
             if (!data.data || data.data.length === 0) {
-                messageEl.textContent = 'No data found for this city. Try calling the gRPC client first to generate some history.';
+                messageEl.textContent = 'No data found for this city in the selected range.';
                 infoEl.textContent = '';
                 if (chartInstance) chartInstance.destroy();
+                if (forecastChartInstance) forecastChartInstance.destroy();
+                detailsEl.textContent = '';
                 return;
             }
 
-            // Datele vin sortate desc (cel mai nou primul), pentru grafic vrem cronologic
             const records = [...data.data].reverse();
-
             const labels = records.map(r => r.timestamp);
             const temps = records.map(r => r.temperature_celsius);
 
-            buildChart(labels, temps);
+            buildHistoryChart(labels, temps);
 
-            infoEl.textContent = `Showing ${records.length} records for ${data.city}.`;
+            let rangeText = 'all history';
+            if (data.hours) {
+                rangeText = `last ${data.hours} hours`;
+            }
+
+            infoEl.textContent = `Showing ${records.length} records for ${data.city} (${rangeText}).`;
+
+            // Detalii despre ultima măsurătoare
+            const latest = records[records.length - 1];
+            detailsEl.innerHTML = `
+                <div>
+                    <span class="label">Latest measurement:</span>
+                    <strong>${latest.timestamp}</strong>
+                </div>
+                <div>
+                    <span class="label">${data.city}:</span>
+                    <strong>${latest.temperature_celsius.toFixed(1)} °C</strong>,
+                    ${latest.description},
+                    humidity ${latest.humidity}%,
+                    wind ${latest.wind_speed} m/s
+                </div>
+            `;
+
+            // 2️⃣ Forecast
+            try {
+                const forecastData = await fetchForecast(city);
+                if (forecastData.data && forecastData.data.length > 0) {
+                    const fLabels = forecastData.data.map(e => e.timestamp);
+                    const fTemps = forecastData.data.map(e => e.temperature_celsius);
+                    buildForecastChart(fLabels, fTemps);
+                } else {
+                    if (forecastChartInstance) forecastChartInstance.destroy();
+                }
+            } catch (forecastErr) {
+                console.error("Forecast error:", forecastErr);
+                // Nu stricăm istoricul dacă forecast-ul e problematic
+            }
+
         } catch (err) {
             console.error(err);
             messageEl.textContent = err.message || 'Unknown error';
             infoEl.textContent = '';
             if (chartInstance) chartInstance.destroy();
+            if (forecastChartInstance) forecastChartInstance.destroy();
+            detailsEl.textContent = '';
         }
     });
 </script>
