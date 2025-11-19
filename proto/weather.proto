@@ -2,34 +2,22 @@ syntax = "proto3";
 
 package weather;
 
-// Mesaj trimis de client către server
+// Request from client to server
 message WeatherRequest {
-  // Numele orașului pentru care vrem vremea
-  string city = 1;
+  string city = 1; // requested city name
 }
 
-// Răspunsul serverului către client
+// Server response for current weather
 message WeatherResponse {
-  // Numele orașului (normalizat, ex: "London")
-  string city = 1;
-
-  // Temperatura curentă în grade Celsius
-  double temperature_celsius = 2;
-
-  // Descrierea condițiilor meteo, ex: "clear sky", "light rain"
-  string description = 3;
-
-  // Umiditatea în procente (0–100)
-  int32 humidity = 4;
-
-  // Viteza vântului în m/s
-  double wind_speed = 5;
-
-  // Timestamp ISO8601, ex: "2025-11-10T12:34:56Z"
-  string timestamp = 6;
+  string city = 1;                 // normalized city name (e.g., "London")
+  double temperature_celsius = 2;  // current temperature in °C
+  string description = 3;          // e.g., "clear sky", "light rain"
+  int32 humidity = 4;              // in %
+  double wind_speed = 5;           // m/s
+  string timestamp = 6;            // ISO8601, e.g., "2025-11-10T12:34:56Z"
 }
 
-// Intrare pentru fiecare prognoză din forecast
+// Forecast entry (3h step as provided by OpenWeather)
 message ForecastEntry {
   string timestamp = 1;
   double temperature_celsius = 2;
@@ -38,17 +26,14 @@ message ForecastEntry {
   double wind_speed = 5;
 }
 
-// Răspuns complet pentru prognoză
+// Forecast response
 message ForecastResponse {
   string city = 1;
   repeated ForecastEntry entries = 2;
 }
 
-// Serviciul principal gRPC
+// Weather gRPC service definition
 service WeatherService {
-  // Returnează vremea curentă pentru un oraș
   rpc GetCurrentWeather (WeatherRequest) returns (WeatherResponse);
-
-  // Returnează prognoza pentru următoarele ore/zile
-  rpc GetForecast (WeatherRequest) returns (ForecastResponse);
+  rpc GetForecast       (WeatherRequest) returns (ForecastResponse);
 }

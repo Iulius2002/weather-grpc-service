@@ -117,6 +117,13 @@
             text-align: center;
         }
 
+        .warn {
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+            color: #fde68a;
+            text-align: center;
+        }
+
         .details {
             margin-top: 0.5rem;
             font-size: 0.9rem;
@@ -174,6 +181,7 @@
 
         <div id="message" class="error"></div>
         <div id="info" class="info"></div>
+        <div id="warning" class="warn"></div>
         <div id="details" class="details"></div>
     </div>
 
@@ -198,6 +206,7 @@
     const rangeSelect = document.getElementById('range-select');
     const messageEl = document.getElementById('message');
     const infoEl = document.getElementById('info');
+    const warnEl = document.getElementById('warning');
     const detailsEl = document.getElementById('details');
     const ctx = document.getElementById('tempChart').getContext('2d');
     const forecastCtx = document.getElementById('forecastChart').getContext('2d');
@@ -212,34 +221,34 @@
         }
 
         const response = await fetch(url);
+        const payload = await response.json().catch(() => ({}));
+
         if (!response.ok) {
-            const data = await response.json().catch(() => ({}));
-            const errorText = data.error || `HTTP error ${response.status}`;
+            const errorText = payload.error || `HTTP error ${response.status}`;
             throw new Error(errorText);
         }
-        return response.json();
+        return payload;
     }
 
     async function fetchForecast(city) {
         const url = `/api/forecast?city=${encodeURIComponent(city)}`;
         const response = await fetch(url);
+        const payload = await response.json().catch(() => ({}));
+
         if (!response.ok) {
-            const data = await response.json().catch(() => ({}));
-            const errorText = data.error || `HTTP error ${response.status}`;
+            const errorText = payload.error || `HTTP error ${response.status}`;
             throw new Error(errorText);
         }
-        return response.json();
+        return payload;
     }
 
     function buildHistoryChart(labels, temps) {
-        if (chartInstance) {
-            chartInstance.destroy();
-        }
+        if (chartInstance) chartInstance.destroy();
 
         chartInstance = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: labels,
+                labels,
                 datasets: [{
                     label: 'Temperature (°C)',
                     data: temps,
@@ -254,16 +263,10 @@
                 responsive: true,
                 scales: {
                     x: {
-                        ticks: {
-                            maxRotation: 45,
-                            minRotation: 45
-                        }
+                        ticks: { maxRotation: 45, minRotation: 45 }
                     },
                     y: {
-                        title: {
-                            display: true,
-                            text: '°C'
-                        }
+                        title: { display: true, text: '°C' }
                     }
                 }
             }
@@ -271,14 +274,12 @@
     }
 
     function buildForecastChart(labels, temps) {
-        if (forecastChartInstance) {
-            forecastChartInstance.destroy();
-        }
+        if (forecastChartInstance) forecastChartInstance.destroy();
 
         forecastChartInstance = new Chart(forecastCtx, {
             type: 'line',
             data: {
-                labels: labels,
+                labels,
                 datasets: [{
                     label: 'Forecast Temperature (°C)',
                     data: temps,
@@ -293,16 +294,10 @@
                 responsive: true,
                 scales: {
                     x: {
-                        ticks: {
-                            maxRotation: 45,
-                            minRotation: 45
-                        }
+                        ticks: { maxRotation: 45, minRotation: 45 }
                     },
                     y: {
-                        title: {
-                            display: true,
-                            text: '°C'
-                        }
+                        title: { display: true, text: '°C' }
                     }
                 }
             }
@@ -315,6 +310,7 @@
 
         messageEl.textContent = '';
         infoEl.textContent = '';
+        warnEl.textContent = '';
         detailsEl.textContent = '';
 
         if (!city) {
@@ -325,7 +321,7 @@
         try {
             infoEl.textContent = 'Loading...';
 
-            // 1️⃣ Istoric
+            // 1) History
             const data = await fetchWeatherHistory(city, hours || null);
 
             if (!data.data || data.data.length === 0) {
@@ -343,30 +339,34 @@
 
             buildHistoryChart(labels, temps);
 
-            let rangeText = 'all history';
-            if (data.hours) {
-                rangeText = `last ${data.hours} hours`;
-            }
-
+            let rangeText = data.hours ? `last ${data.hours} hours` : 'all history';
             infoEl.textContent = `Showing ${records.length} records for ${data.city} (${rangeText}).`;
 
-            // Detalii despre ultima măsurătoare
-            const latest = records[records.length - 1];
+            if (data.stale) {
+                warnEl.textContent = data.warning || "Showing last known data (stale).";
+            }
+
+            // Details about latest measurement
+            const latest = records[records.length - 1] || {};
+            const t = (typeof latest.temperature_celsius === 'number')
+                ? latest.temperature_celsius.toFixed(1)
+                : latest.temperature_celsius;
+
             detailsEl.innerHTML = `
                 <div>
                     <span class="label">Latest measurement:</span>
-                    <strong>${latest.timestamp}</strong>
+                    <strong>${latest.timestamp || '-'}</strong>
                 </div>
                 <div>
                     <span class="label">${data.city}:</span>
-                    <strong>${latest.temperature_celsius.toFixed(1)} °C</strong>,
-                    ${latest.description},
-                    humidity ${latest.humidity}%,
-                    wind ${latest.wind_speed} m/s
+                    <strong>${t ?? '-'} °C</strong>,
+                    ${latest.description ?? '-'},
+                    humidity ${latest.humidity ?? '-'}%,
+                    wind ${latest.wind_speed ?? '-'} m/s
                 </div>
             `;
 
-            // 2️⃣ Forecast
+            // 2) Forecast
             try {
                 const forecastData = await fetchForecast(city);
                 if (forecastData.data && forecastData.data.length > 0) {
@@ -378,13 +378,14 @@
                 }
             } catch (forecastErr) {
                 console.error("Forecast error:", forecastErr);
-                // Nu stricăm istoricul dacă forecast-ul e problematic
+                // keep history chart even if forecast fails
             }
 
         } catch (err) {
             console.error(err);
             messageEl.textContent = err.message || 'Unknown error';
             infoEl.textContent = '';
+            warnEl.textContent = '';
             if (chartInstance) chartInstance.destroy();
             if (forecastChartInstance) forecastChartInstance.destroy();
             detailsEl.textContent = '';
