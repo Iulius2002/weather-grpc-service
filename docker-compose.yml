@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   mongo:
     image: mongo:7
@@ -16,15 +14,22 @@ services:
     depends_on:
       - mongo
     environment:
-      # valorile dintre acolade vin din .env-ul tău local
       OPENWEATHER_API_KEY: ${OPENWEATHER_API_KEY}
       GRPC_API_KEY: ${GRPC_API_KEY}
-      # pentru container, Mongo e accesibil pe hostname-ul 'mongo'
+      # service name DNS inside compose
       MONGO_URI: mongodb://mongo:27017
       MONGO_DB_NAME: weather_db
       MONGO_COLLECTION_NAME: weather_history
+      # optional tunables (fallback to defaults)
+      OPENWEATHER_TIMEOUT_SECONDS: ${OPENWEATHER_TIMEOUT_SECONDS:-10}
+      OPENWEATHER_MAX_RETRIES: ${OPENWEATHER_MAX_RETRIES:-3}
+      OPENWEATHER_BACKOFF_SECONDS: ${OPENWEATHER_BACKOFF_SECONDS:-1.5}
+      CACHE_TTL_SECONDS: ${CACHE_TTL_SECONDS:-300}
     ports:
       - "50051:50051"
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
 
   api:
     build: .
@@ -32,15 +37,19 @@ services:
     command: python -m api.app
     depends_on:
       - mongo
+      - grpc_server
     environment:
-      OPENWEATHER_API_KEY: ${OPENWEATHER_API_KEY}
       GRPC_API_KEY: ${GRPC_API_KEY}
       MONGO_URI: mongodb://mongo:27017
       MONGO_DB_NAME: weather_db
       MONGO_COLLECTION_NAME: weather_history
-      GRPC_SERVER_ADDRESS: grpc_server:50051
+      GRPC_SERVER_ADDRESS: ${GRPC_SERVER_ADDRESS:-grpc_server:50051}
+      CACHE_TTL_SECONDS: ${CACHE_TTL_SECONDS:-300}
     ports:
       - "8000:8000"
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
 
 volumes:
   mongo_data:
