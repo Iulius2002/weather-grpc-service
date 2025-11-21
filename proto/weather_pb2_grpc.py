@@ -52,15 +52,13 @@ class WeatherServiceServicer(object):
     """
 
     def GetCurrentWeather(self, request, context):
-        """Returnează vremea curentă pentru un oraș
-        """
+
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
     def GetForecast(self, request, context):
-        """Returnează prognoza pentru următoarele ore/zile
-        """
+
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
@@ -87,8 +85,7 @@ def add_WeatherServiceServicer_to_server(servicer, server):
 
  # This class is part of an EXPERIMENTAL API.
 class WeatherService(object):
-    """Serviciul principal gRPC
-    """
+
 
     @staticmethod
     def GetCurrentWeather(request,

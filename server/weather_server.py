@@ -1,4 +1,3 @@
-# server/weather_server.py
 """
 gRPC WeatherService server implementation.
 
@@ -307,13 +306,13 @@ def serve() -> None:
     weather_pb2_grpc.add_WeatherServiceServicer_to_server(WeatherService(), server)
     server.add_insecure_port("[::]:50051")
 
-    logging.info("🚀 Weather gRPC server running on port 50051...")
+    logging.info(" Weather gRPC server running on port 50051...")
     server.start()
 
     try:
         server.wait_for_termination()
     except KeyboardInterrupt:
-        logging.info("🛑 Shutting down server...")
+        logging.info(" Shutting down server...")
 
 
 if __name__ == "__main__":

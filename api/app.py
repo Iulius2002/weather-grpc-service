@@ -31,10 +31,7 @@ app = Flask(__name__, template_folder=TEMPLATES_DIR)
 #  Helpers
 # -------------------------------------------------------------------------
 def _grpc_address() -> str:
-    """
-    Returnează adresa serverului gRPC.
-    Implicit folosește numele de serviciu din Docker Compose; pentru local, pune GRPC_SERVER_ADDRESS=localhost:50051 în .env.
-    """
+
     return os.getenv("GRPC_SERVER_ADDRESS", "grpc_server:50051")
 
 
@@ -72,7 +69,7 @@ def call_grpc_forecast(city: str) -> weather_pb2.ForecastResponse:
 
 
 def _parse_int(name: str, raw: Optional[str], *, default: Optional[int] = None, min_value: Optional[int] = None) -> Optional[int]:
-    """Conversie robustă la int pentru parametrii query; ridică ValueError cu mesaj clar."""
+
     if raw is None:
         return default
     try:
@@ -89,13 +86,13 @@ def _parse_int(name: str, raw: Optional[str], *, default: Optional[int] = None, 
 # -------------------------------------------------------------------------
 @app.route("/")
 def index() -> str:
-    """Frontend UI route — încarcă pagina principală."""
+
     return render_template("index.html")
 
 
 @app.get("/api/health")
 def health() -> Any:
-    """Health check simplu."""
+
     return jsonify({"status": "ok"}), 200
 
 
@@ -124,14 +121,12 @@ def weather_history_route():
 
     cache_ttl_seconds = int(os.getenv("CACHE_TTL_SECONDS", "300"))
 
-    # 1) Citim istoricul pentru UI (respectând "hours", dacă e prezent)
     try:
         history: List[Dict[str, Any]] = get_weather_history(city, limit=limit, hours=hours)
     except Exception as e:
         logging.exception("Database error while reading history for %s", city)
         return jsonify({"error": f"Database error: {e}"}), 500
 
-    # 2) Verificăm vechimea celui mai nou record ignorând filtrul "hours"
     try:
         latest_list = get_weather_history(city, limit=1, hours=None)
     except Exception as e:
@@ -155,12 +150,10 @@ def weather_history_route():
         logging.info("No records found for %s — will fetch via gRPC.", city)
         needs_refresh = True
 
-    # 3) Refresh via gRPC dacă e nevoie; serverul gRPC salvează în Mongo
     if needs_refresh:
         try:
             logging.info("Calling gRPC GetCurrentWeather for %s", city)
             _ = call_grpc_current_weather(city)
-            # recitim istoricul pentru UI (respectând "hours")
             history = get_weather_history(city, limit=limit, hours=hours)
         except grpc.RpcError as e:
             return jsonify({
@@ -224,5 +217,4 @@ def forecast_route():
 #  Main entry point (local dev)
 # -------------------------------------------------------------------------
 if __name__ == "__main__":
-    # Local-only. În Docker, rulezi cu gunicorn/flask run dacă dorești.
     app.run(host="0.0.0.0", port=8000)
