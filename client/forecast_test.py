@@ -1,7 +1,7 @@
 import grpc
 from proto import weather_pb2, weather_pb2_grpc
 
-API_KEY = "super-secret-key-123"  # aceeași din .env
+API_KEY = "super-secret-key-123"
 
 def run():
     with grpc.insecure_channel("localhost:50051") as channel:

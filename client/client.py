@@ -12,9 +12,7 @@ load_dotenv()
 
 
 def print_weather_response(response: weather_pb2.WeatherResponse) -> None:
-    """
-    Afișează într-un format drăguț răspunsul primit de la server.
-    """
+
     print("\n==============================")
     print(f"Weather for {response.city}:")
     print(f"  Temperature: {response.temperature_celsius:.1f} °C")
@@ -65,7 +63,6 @@ def run():
                     metadata=[("x-api-key", api_key)]
                 )
 
-                # Afișăm frumos răspunsul
                 print_weather_response(response)
 
             except grpc.RpcError as e:
